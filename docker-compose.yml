@@ -1,0 +1,16 @@
+version: '3'
+services:
+  db:
+    image: mysql:5.7.29
+    restart: always
+    volumes:
+      - ./tmp/db:/var/lib/mysql
+  webapp:
+    build: .
+    entrypoint: ./startup.sh
+    volumes:
+      - .:/webapp
+    ports:
+      - 3000:3000
+    depends_on:
+      - db
