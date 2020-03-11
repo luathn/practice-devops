@@ -1,24 +1,99 @@
 # README
+Setup cơ bản CI cho một ứng dụng Rails. Hướng dẫn này sẽ chia thành nhiều phần. Và việc đầu tiên chúng ta cần làm là Dockerize ứng dụng của mình.
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+# Dockerize my app
 
-Things you may want to cover:
+## Write Dockerfile
 
-* Ruby version
+Dưới đây là một Dockerfile cơ bản nhất cho ứng dụng Rails của chúng ta:
+```
+FROM ruby:2.6.5
+RUN apt-get update -qq && \
+  apt-get install -y nodejs \
+  mysql-client
 
-* System dependencies
+ENV APP_ROOT /webapp
+RUN mkdir $APP_ROOT
+WORKDIR $APP_ROOT
 
-* Configuration
+COPY Gemfile $APP_ROOT/Gemfile
+COPY Gemfile.lock $APP_ROOT/Gemfile.lock
+RUN bundle install
+COPY . $APP_ROOT
 
-* Database creation
+RUN ["chmod", "+x", "startup.sh"]
+```
+Hãy cùng đi phân tích từng dòng của Dockerfile trên.
+`FROM ruby:2.6.5`: Dòng này là thông báo image này dựa trên ruby:2.6.5
 
-* Database initialization
+```
+RUN apt-get update -qq && \
+  apt-et install -y nodejs \
+  mysql-client
+```
+Đoạn này update và cài những package cần thiết cho image.
 
-* How to run the test suite
+```
+ENV APP_ROOT /webapp
+RUN mkdir $APP_ROOT
+WORKDIR $APP_ROOT
+```
+Đoạn này tạo folder gốc cho image
 
-* Services (job queues, cache servers, search engines, etc.)
+```
+COPY Gemfile $APP_ROOT/Gemfile
+COPY Gemfile.lock $APP_ROOT/Gemfile.lock
+RUN bundle install
+COPY . $APP_ROOT
+```
+Copy Gemfile và Gemfile.lock vào image và chạy bundle install để cài gem cần thiết. Sau đó copy toàn thư mục hiện tại vào APP_ROOT
 
-* Deployment instructions
+Như vậy là chúng ta đã có 1 image tạm đủ để chạy ứng dụng. Bước tiếp theo là viết docker-compose để chạy image trên và thêm mysql để thành ứng dụng hoàn chỉnh.
 
-* ...
+## Write docker-compose.yml
+
+Giờ nhìn qua phát docker-compose nó là cái gì nào:
+```
+version: '3'
+services:
+  db:
+    image: mysql:5.7.29
+    restart: always
+    volumes:
+      - ./tmp/db:/var/lib/mysql
+  webapp:
+    build: .
+    entrypoint: ./startup.sh
+    volumes:
+      - .:/webapp
+    ports:
+      - 3000:3000
+    depends_on:
+      - db
+```
+
+Dòng đầu để khai báo version của file.
+Tiếp theo là các services của ứng dụng:
+```
+db:
+  image: mysql:5.7.29
+  restart: always
+  volumes:
+    - ./tmp/db:/var/lib/mysql
+```
+Đây là database của chúng ta, dòng image là tên image và có thể tìm trên dockerhub. Dòng restart để ứng dụng này khởi động lại khi bị lỗi. Volumes là kết nối thư mục máy thật và container.
+
+```
+webapp:
+  build: .
+  entrypoint: ./startup.sh
+  volumes:
+    - .:/webapp
+  ports:
+    - 3000:3000
+  depends_on:
+    - db
+```
+Đây là app Rails của mình. Entrypoint là command sẽ run lúc tạo ứng dụng, file này trong thư mục gốc ứng dụng. Ports để set từ port máy thật qua container. Depends_on là những services cần thiết cho app này.
+
+Tạm thời như này là đủ cho bước tiếp theo là setup CI.
