@@ -97,3 +97,5 @@ webapp:
 Đây là app Rails của mình. Entrypoint là command sẽ run lúc tạo ứng dụng, file này trong thư mục gốc ứng dụng. Ports để set từ port máy thật qua container. Depends_on là những services cần thiết cho app này.
 
 Tạm thời như này là đủ cho bước tiếp theo là setup CI.
+
+# Setup
