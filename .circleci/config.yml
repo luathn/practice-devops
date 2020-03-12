@@ -1,52 +1,15 @@
-version: 2
+version: 2.1
+orbs:
+  ruby: circleci/ruby@0.1.2 
+
 jobs:
   build:
-    parallelism: 3
     docker:
-      - image: circleci/ruby:2.6.3
-        environment:
-          BUNDLE_PATH: vendor/bundle
-          PGHOST: 127.0.0.1
-          RAILS_ENV: test
-      - image: circleci/mysql:5.7.29
-        environment:
-          DATABASE_USER: root
-          DATABASE_NAME: circleci-test
-          POSTGRES_PASSWORD: ""
+      - image: circleci/ruby:2.6.3-stretch-node
+    executor: default
     steps:
       - checkout
-
-      - restore_cache:
-          keys:
-            - rails-demo-bundle-v2-{{ checksum "Gemfile.lock" }}
-            - rails-demo-bundle-v2-
-
-      - run: # Install Ruby dependencies
-          name: Bundle Install
-          command: bundle check --path vendor/bundle || bundle install --deployment
-
-      # Store bundle cache for Ruby dependencies
-      - save_cache:
-          key: rails-demo-bundle-v2-{{ checksum "Gemfile.lock" }}
-          paths:
-            - vendor/bundle
-
-      # Only necessary if app uses webpacker or yarn in some other way
-      - restore_cache:
-          keys:
-            - rails-demo-yarn-{{ checksum "yarn.lock" }}
-            - rails-demo-yarn-
-
       - run:
-          name: Wait for DB
-          command: dockerize -wait tcp://localhost:5432 -timeout 1m
-
-      - run: bundle exec rake db:create
-      - run: bundle exec rake db:schema:load
-
-      - run:
-          name: Run Rubocop
-          command: bundle exec rubocop
-
-      - store_test_results:
-          path: test_results
+          name: Which bundler?
+          command: bundle -v
+      - ruby/bundle-install
