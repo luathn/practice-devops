@@ -97,3 +97,58 @@ webapp:
 Đây là app Rails của mình. Entrypoint là command sẽ run lúc tạo ứng dụng, file này trong thư mục gốc ứng dụng. Ports để set từ port máy thật qua container. Depends_on là những services cần thiết cho app này.
 
 Tạm thời như này là đủ cho bước tiếp theo là setup CI.
+
+# Setup CI
+
+```
+version: 2
+jobs:
+  build:
+    parallelism: 3
+    docker:
+      - image: circleci/ruby:2.6.3-stretch
+        environment:
+          BUNDLE_PATH: vendor/bundle
+          PGHOST: 127.0.0.1
+          RAILS_ENV: test
+      - image: circleci/mysql:5.7.29
+        environment:
+          DATABASE_USER: root
+          DATABASE_NAME: circleci-test
+          POSTGRES_PASSWORD: ""
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+            - rails-demo-bundle-v2-{{ checksum "Gemfile.lock" }}
+            - rails-demo-bundle-v2-
+
+      - run: gem install bundle
+
+      - run: bundle install
+
+      - run: # Install Ruby dependencies
+          name: Bundle Install
+          command: bundle config set path 'vendor/bundle' || bundle config set deployment 'true'
+
+      # Store bundle cache for Ruby dependencies
+      - save_cache:
+          key: rails-demo-bundle-v2-{{ checksum "Gemfile.lock" }}
+          paths:
+            - vendor/bundle
+
+      - run:
+          name: Wait for DB
+          command: dockerize -wait tcp://localhost:3306 -timeout 1m
+
+      - run: bundle exec rails db:create
+      - run: bundle exec rails db:schema:load
+
+      - run:
+          name: Run Rubocop
+          command: bundle exec rubocop
+
+      - store_test_results:
+          path: test_results
+  ```
